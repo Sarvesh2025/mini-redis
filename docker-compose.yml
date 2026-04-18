@@ -1,0 +1,6 @@
+services:
+  mini-redis:
+    build: .
+    ports:
+      - "7379:7379"
+    restart: unless-stopped

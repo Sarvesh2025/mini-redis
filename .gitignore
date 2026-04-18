@@ -1,0 +1,13 @@
+# Binaries
+/bin/*
+!/bin/.gitkeep
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
