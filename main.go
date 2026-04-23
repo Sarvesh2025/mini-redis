@@ -17,5 +17,10 @@ func setupFlags() {
 func main() {
 	setupFlags()
 	log.Println("starting mini-redis")
-	server.RunSyncTCPServer()
+
+	if err := server.RunAsyncTCPServer(); err != nil {
+		log.Println("async server unavailable:", err)
+		log.Println("falling back to synchronous TCP server")
+		server.RunSyncTCPServer()
+	}
 }
