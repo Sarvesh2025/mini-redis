@@ -199,3 +199,38 @@ func Decode(data []byte) (interface{}, error) {
 	value, _, err := DecodeOne(data)
 	return value, err
 }
+
+func DecodeArrayString(data []byte) ([]string, error) {
+	value, err := Decode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	ts, ok := value.([]interface{})
+	if !ok {
+		return nil, errors.New("expected RESP array")
+	}
+
+	tokens := make([]string, len(ts))
+	for i := range tokens {
+		s, ok := ts[i].(string)
+		if !ok {
+			return nil, errors.New("expected array of strings")
+		}
+		tokens[i] = s
+	}
+
+	return tokens, nil
+}
+
+func Encode(value interface{}, isSimple bool) []byte {
+	switch v := value.(type) {
+	case string:
+		if isSimple {
+			return []byte(fmt.Sprintf("+%s\r\n", v))
+		}
+		return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(v), v))
+	}
+
+	return []byte{}
+}
