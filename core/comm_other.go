@@ -4,7 +4,6 @@ package core
 
 import "errors"
 
-// FDComm is a stub on non-Linux platforms. The async (epoll) server
 type FDComm struct {
 	Fd int
 }

@@ -37,6 +37,16 @@ func Put(k string, obj *Obj) {
 	store[k] = obj
 }
 
+func Del(k string) bool {
+	storeMu.Lock()
+	defer storeMu.Unlock()
+	if _, ok := store[k]; !ok {
+		return false
+	}
+	delete(store, k)
+	return true
+}
+
 func Get(k string) *Obj {
 	storeMu.RLock()
 	obj, ok := store[k]
