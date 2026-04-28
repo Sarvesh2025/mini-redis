@@ -27,7 +27,7 @@ func RunSyncTCPServer() {
 		log.Println("client connected with address:", c.RemoteAddr(), "concurrent clients", conClients)
 
 		for {
-			cmd, err := readCommand(c)
+			cmds, err := readCommands(c)
 			if err != nil {
 				c.Close()
 				conClients--
@@ -39,7 +39,7 @@ func RunSyncTCPServer() {
 				break
 			}
 
-			respond(cmd, c)
+			respond(cmds, c)
 		}
 	}
 }
