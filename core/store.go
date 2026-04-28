@@ -3,6 +3,8 @@ package core
 import (
 	"sync"
 	"time"
+
+	"mini-redis/config"
 )
 
 type Obj struct {
@@ -34,6 +36,9 @@ func NewObj(value interface{}, durationMs int64) *Obj {
 func Put(k string, obj *Obj) {
 	storeMu.Lock()
 	defer storeMu.Unlock()
+	if len(store) >= config.KeysLimit {
+		evict()
+	}
 	store[k] = obj
 }
 
