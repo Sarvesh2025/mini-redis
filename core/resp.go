@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -211,20 +212,32 @@ func Decode(data []byte) ([]interface{}, error) {
 	return values, nil
 }
 
+// encodeString returns the RESP bulk-string encoding of v.
+func encodeString(v string) []byte {
+	return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(v), v))
+}
+
 func Encode(value interface{}, isSimple bool) []byte {
 	switch v := value.(type) {
-	case nil:
-		return []byte("$-1\r\n")
 	case string:
 		if isSimple {
 			return []byte(fmt.Sprintf("+%s\r\n", v))
 		}
-		return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(v), v))
-	case int64:
+		return encodeString(v)
+	case int, int8, int16, int32, int64:
 		return []byte(fmt.Sprintf(":%d\r\n", v))
-	case error:
-		return []byte(fmt.Sprintf("-%s\r\n", v.Error()))
-	}
 
-	return []byte{}
+	case []string:
+		var b []byte
+		buf := bytes.NewBuffer(b)
+		for _, b := range value.([]string) {
+			buf.Write(encodeString(b))
+		}
+
+		return []byte(fmt.Sprintf("*%d\r\n%s", len(v), buf.Bytes()))
+	case error:
+		return []byte(fmt.Sprintf("-%s\r\n", v))
+	default:
+		return RESP_NIL
+	}
 }
