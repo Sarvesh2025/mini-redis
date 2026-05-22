@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -120,29 +121,44 @@ func evalEXPIRE(args []string) []byte {
 	return RESP_ONE
 }
 
-// EvalAndRespond evaluates a pipeline of commands, accumulates each encoded
-// response in an in-memory buffer, then writes the whole buffer back in a
-// single write. This avoids one syscall per command in a pipeline.
 func EvalAndRespond(cmds RedisCmds, c io.ReadWriter) error {
 	buf := bytes.NewBuffer(nil)
 
 	for _, cmd := range cmds {
+		var resp []byte
 		switch cmd.Cmd {
 		case "PING":
-			buf.Write(evalPING(cmd.Args))
+			resp = evalPING(cmd.Args)
 		case "SET":
-			buf.Write(evalSET(cmd.Args))
+			resp = evalSET(cmd.Args)
+			if bytes.Equal(resp, RESP_OK) {
+				WriteAOF(cmd)
+			}
 		case "GET":
-			buf.Write(evalGET(cmd.Args))
+			resp = evalGET(cmd.Args)
 		case "TTL":
-			buf.Write(evalTTL(cmd.Args))
+			resp = evalTTL(cmd.Args)
 		case "DEL":
-			buf.Write(evalDEL(cmd.Args))
+			resp = evalDEL(cmd.Args)
+			if !bytes.Equal(resp, RESP_ZERO) {
+				WriteAOF(cmd)
+			}
 		case "EXPIRE":
-			buf.Write(evalEXPIRE(cmd.Args))
+			resp = evalEXPIRE(cmd.Args)
+			if bytes.Equal(resp, RESP_ONE) {
+				WriteAOF(cmd)
+			}
+		case "BGREWRITEAOF":
+			go func() {
+				if err := RewriteAOF(); err != nil {
+					log.Println("AOF: rewrite error:", err)
+				}
+			}()
+			resp = Encode("Background AOF rewrite started", true)
 		default:
-			buf.Write(Encode(errors.New("ERR unknown command '"+strings.ToLower(cmd.Cmd)+"'"), false))
+			resp = Encode(errors.New("ERR unknown command '"+strings.ToLower(cmd.Cmd)+"'"), false)
 		}
+		buf.Write(resp)
 	}
 
 	_, err := c.Write(buf.Bytes())
