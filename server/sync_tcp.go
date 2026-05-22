@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"mini-redis/config"
+	"mini-redis/core"
 )
 
 func RunSyncTCPServer() {
@@ -26,6 +27,7 @@ func RunSyncTCPServer() {
 		conClients++
 		log.Println("client connected with address:", c.RemoteAddr(), "concurrent clients", conClients)
 
+		ctx := core.NewClientContext()
 		for {
 			cmds, err := readCommands(c)
 			if err != nil {
@@ -39,7 +41,7 @@ func RunSyncTCPServer() {
 				break
 			}
 
-			respond(cmds, c)
+			respond(cmds, c, ctx)
 		}
 	}
 }

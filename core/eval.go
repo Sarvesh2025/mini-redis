@@ -112,20 +112,43 @@ func evalEXPIRE(args []string) []byte {
 		return Encode(errors.New("ERR value is not an integer or out of range"), false)
 	}
 
-	obj := Get(key)
-	if obj == nil {
+	if !SetExpire(key, time.Now().UnixMilli()+exDurationSec*1000) {
 		return RESP_ZERO
 	}
-
-	obj.ExpiresAt = time.Now().UnixMilli() + exDurationSec*1000
 	return RESP_ONE
 }
 
-func EvalAndRespond(cmds RedisCmds, c io.ReadWriter) error {
+func EvalAndRespond(cmds RedisCmds, c io.ReadWriter, ctx *ClientContext) error {
 	buf := bytes.NewBuffer(nil)
 
 	for _, cmd := range cmds {
 		var resp []byte
+
+		switch cmd.Cmd {
+		case "MULTI":
+			resp = evalMULTI(ctx)
+			buf.Write(resp)
+			continue
+		case "EXEC":
+			resp = evalEXEC(ctx)
+			buf.Write(resp)
+			continue
+		case "DISCARD":
+			resp = evalDISCARD(ctx)
+			buf.Write(resp)
+			continue
+		case "WATCH":
+			resp = evalWATCH(cmd.Args, ctx)
+			buf.Write(resp)
+			continue
+		}
+
+		if ctx.InMulti {
+			ctx.QueueCmd(cmd)
+			buf.Write(RESP_QUEUED)
+			continue
+		}
+
 		switch cmd.Cmd {
 		case "PING":
 			resp = evalPING(cmd.Args)

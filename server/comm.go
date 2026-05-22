@@ -58,8 +58,8 @@ func readCommands(c io.ReadWriter) (core.RedisCmds, error) {
 	return cmds, nil
 }
 
-func respond(cmds core.RedisCmds, c io.ReadWriter) {
-	if err := core.EvalAndRespond(cmds, c); err != nil {
+func respond(cmds core.RedisCmds, c io.ReadWriter, ctx *core.ClientContext) {
+	if err := core.EvalAndRespond(cmds, c, ctx); err != nil {
 		_, _ = c.Write([]byte("-" + err.Error() + "\r\n"))
 	}
 }

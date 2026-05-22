@@ -19,6 +19,8 @@ func RunAsyncTCPServer() error {
 
 	maxClients := 20000
 	events := make([]syscall.EpollEvent, maxClients)
+	clientContexts := make(map[int]*core.ClientContext)
+
 	serverFD, err := syscall.Socket(syscall.AF_INET, syscall.O_NONBLOCK|syscall.SOCK_STREAM, 0)
 	if err != nil {
 		return err
@@ -77,6 +79,7 @@ func RunAsyncTCPServer() error {
 
 				conClients++
 				_ = syscall.SetNonblock(fd, true)
+				clientContexts[fd] = core.NewClientContext()
 
 				socketClientEvent := syscall.EpollEvent{
 					Events: syscall.EPOLLIN,
@@ -86,15 +89,18 @@ func RunAsyncTCPServer() error {
 					log.Fatal(err)
 				}
 			} else {
-				comm := core.FDComm{Fd: int(events[i].Fd)}
+				fd := int(events[i].Fd)
+				comm := core.FDComm{Fd: fd}
 				cmds, err := readCommands(comm)
 				if err != nil {
-					syscall.Close(int(events[i].Fd))
+					syscall.Close(fd)
+					delete(clientContexts, fd)
 					conClients--
 					log.Println("client disconnected. concurrent clients:", conClients)
 					continue
 				}
-				respond(cmds, comm)
+				ctx := clientContexts[fd]
+				respond(cmds, comm, ctx)
 			}
 		}
 	}
