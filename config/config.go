@@ -6,4 +6,5 @@ var (
 	KeysLimit  int
 	AOFFile    string
 	AOFEnabled bool
+	ServerMode string // "auto", "sync", or "async"
 )

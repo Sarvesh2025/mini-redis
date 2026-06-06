@@ -20,23 +20,49 @@ func toArrayString(ai []interface{}) ([]string, error) {
 	return as, nil
 }
 
-// readCommands reads a single read worth of bytes off the connection, decodes
-// the (possibly pipelined) RESP arrays into a slice of RedisCmd. A single
-// connection read may contain multiple commands when the client pipelines.
+// readCommands reads bytes off the connection until a complete set of RESP
+// commands is decoded. Handles both blocking (sync server) and non-blocking
+// (async server with epoll) sockets.
 func readCommands(c io.ReadWriter) (core.RedisCmds, error) {
-	// TODO: Max read in one shot is 512 bytes.
-	// To allow input > 512 bytes, repeatedly read until delimiter/EOF.
-	buf := make([]byte, 512)
-	n, err := c.Read(buf)
-	if err != nil {
-		return nil, err
+	buf := make([]byte, 0, 4096)
+	tmp := make([]byte, 4096)
+
+	for {
+		n, err := c.Read(tmp)
+		if n > 0 {
+			buf = append(buf, tmp[:n]...)
+		}
+
+		// n==0 with no error on a non-blocking socket means peer closed
+		if n == 0 && err == nil {
+			return nil, io.EOF
+		}
+
+		if err != nil {
+			if len(buf) == 0 {
+				return nil, err
+			}
+			break
+		}
+
+		values, decErr := core.Decode(buf)
+		if decErr == nil || len(values) > 0 {
+			return buildCmds(values)
+		}
+
+		if len(buf) > 65536 {
+			return nil, errors.New("request too large")
+		}
 	}
 
-	values, err := core.Decode(buf[:n])
-	if err != nil {
-		return nil, err
+	values, _ := core.Decode(buf)
+	if len(values) == 0 {
+		return nil, errors.New("incomplete RESP data")
 	}
+	return buildCmds(values)
+}
 
+func buildCmds(values []interface{}) (core.RedisCmds, error) {
 	cmds := make(core.RedisCmds, 0, len(values))
 	for _, value := range values {
 		array, ok := value.([]interface{})

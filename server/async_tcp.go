@@ -3,6 +3,7 @@
 package server
 
 import (
+	"errors"
 	"log"
 	"net"
 	"syscall"
@@ -30,7 +31,10 @@ func RunAsyncTCPServer() error {
 	if err = syscall.SetNonblock(serverFD, true); err != nil {
 		return err
 	}
-	ip4 := net.ParseIP(config.Host)
+	ip4 := net.ParseIP(config.Host).To4()
+	if ip4 == nil {
+		return errors.New("invalid IPv4 address: " + config.Host)
+	}
 	if err = syscall.Bind(serverFD, &syscall.SockaddrInet4{
 		Port: config.Port,
 		Addr: [4]byte{ip4[0], ip4[1], ip4[2], ip4[3]},

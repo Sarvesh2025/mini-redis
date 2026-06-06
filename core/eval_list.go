@@ -109,9 +109,9 @@ func lpush(key string, values []string) []byte {
 	obj := get(key)
 
 	if obj == nil {
-		list := make([]string, 0, len(values))
-		for i := len(values) - 1; i >= 0; i-- {
-			list = append(list, values[i])
+		list := make([]string, len(values))
+		for i, v := range values {
+			list[len(values)-1-i] = v
 		}
 		put(key, NewObj(list, -1))
 		return Encode(int64(len(list)), false)
@@ -122,12 +122,14 @@ func lpush(key string, values []string) []byte {
 		return Encode(errors.New("WRONGTYPE Operation against a key holding the wrong kind of value"), false)
 	}
 
-	for i := len(values) - 1; i >= 0; i-- {
-		list = append([]string{values[i]}, list...)
+	newList := make([]string, len(values)+len(list))
+	for i, v := range values {
+		newList[len(values)-1-i] = v
 	}
-	obj.Value = list
+	copy(newList[len(values):], list)
+	obj.Value = newList
 	keyVersions[key]++
-	return Encode(int64(len(list)), false)
+	return Encode(int64(len(newList)), false)
 }
 
 func rpush(key string, values []string) []byte {

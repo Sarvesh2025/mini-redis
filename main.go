@@ -17,6 +17,7 @@ func setupFlags() {
 	flag.IntVar(&config.KeysLimit, "keys-limit", 5*1000*1000, "maximum keys allowed before eviction kicks in")
 	flag.BoolVar(&config.AOFEnabled, "aof-enabled", false, "enable AOF persistence")
 	flag.StringVar(&config.AOFFile, "aof-file", "mini-redis.aof", "path to the AOF file")
+	flag.StringVar(&config.ServerMode, "server-mode", "auto", "server mode: auto, sync, or async")
 	flag.Parse()
 }
 
@@ -41,9 +42,17 @@ func main() {
 		os.Exit(0)
 	}()
 
-	if err := server.RunAsyncTCPServer(); err != nil {
-		log.Println("async server unavailable:", err)
-		log.Println("falling back to synchronous TCP server")
+	switch config.ServerMode {
+	case "sync":
 		server.RunSyncTCPServer()
+	case "async":
+		if err := server.RunAsyncTCPServer(); err != nil {
+			log.Fatalf("async server failed: %v", err)
+		}
+	default:
+		if err := server.RunAsyncTCPServer(); err != nil {
+			log.Println("async server unavailable:", err, "; falling back to sync server")
+			server.RunSyncTCPServer()
+		}
 	}
 }
