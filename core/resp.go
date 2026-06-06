@@ -241,3 +241,13 @@ func Encode(value interface{}, isSimple bool) []byte {
 		return RESP_NIL
 	}
 }
+
+// EncodeBulkStringArray encodes a slice of strings as a RESP array of bulk strings.
+func EncodeBulkStringArray(items []string) []byte {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString(fmt.Sprintf("*%d\r\n", len(items)))
+	for _, s := range items {
+		buf.Write(encodeString(s))
+	}
+	return buf.Bytes()
+}

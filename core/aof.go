@@ -99,6 +99,18 @@ func LoadAOF() error {
 			evalDEL(tokens[1:])
 		case "EXPIRE":
 			evalEXPIRE(tokens[1:])
+		case "LPUSH":
+			evalLPUSH(tokens[1:])
+		case "RPUSH":
+			evalRPUSH(tokens[1:])
+		case "LPOP":
+			evalLPOP(tokens[1:])
+		case "RPOP":
+			evalRPOP(tokens[1:])
+		case "HSET":
+			evalHSET(tokens[1:])
+		case "HDEL":
+			evalHDEL(tokens[1:])
 		}
 		loaded++
 	}
@@ -147,14 +159,30 @@ func RewriteAOF() error {
 			continue
 		}
 
-		tokens := []string{"SET", k, obj.Value.(string)}
-		if obj.ExpiresAt != -1 {
-			remainingSec := (obj.ExpiresAt - now) / 1000
-			if remainingSec > 0 {
-				tokens = append(tokens, "EX", strconv.FormatInt(remainingSec, 10))
+		switch v := obj.Value.(type) {
+		case string:
+			tokens := []string{"SET", k, v}
+			if obj.ExpiresAt != -1 {
+				remainingSec := (obj.ExpiresAt - now) / 1000
+				if remainingSec > 0 {
+					tokens = append(tokens, "EX", strconv.FormatInt(remainingSec, 10))
+				}
+			}
+			w.Write(Encode(tokens, false))
+		case []string:
+			if len(v) > 0 {
+				tokens := append([]string{"RPUSH", k}, v...)
+				w.Write(Encode(tokens, false))
+			}
+		case map[string]string:
+			if len(v) > 0 {
+				tokens := []string{"HSET", k}
+				for field, val := range v {
+					tokens = append(tokens, field, val)
+				}
+				w.Write(Encode(tokens, false))
 			}
 		}
-		w.Write(Encode(tokens, false))
 	}
 	storeMu.RUnlock()
 

@@ -118,6 +118,10 @@ func evalEXPIRE(args []string) []byte {
 	return RESP_ONE
 }
 
+func isRESPError(resp []byte) bool {
+	return len(resp) > 0 && resp[0] == '-'
+}
+
 func EvalAndRespond(cmds RedisCmds, c io.ReadWriter, ctx *ClientContext) error {
 	buf := bytes.NewBuffer(nil)
 
@@ -171,6 +175,53 @@ func EvalAndRespond(cmds RedisCmds, c io.ReadWriter, ctx *ClientContext) error {
 			if bytes.Equal(resp, RESP_ONE) {
 				WriteAOF(cmd)
 			}
+
+		// List commands
+		case "LPUSH":
+			resp = evalLPUSH(cmd.Args)
+			if !isRESPError(resp) {
+				WriteAOF(cmd)
+			}
+		case "RPUSH":
+			resp = evalRPUSH(cmd.Args)
+			if !isRESPError(resp) {
+				WriteAOF(cmd)
+			}
+		case "LPOP":
+			resp = evalLPOP(cmd.Args)
+			if !bytes.Equal(resp, RESP_NIL) && !isRESPError(resp) {
+				WriteAOF(cmd)
+			}
+		case "RPOP":
+			resp = evalRPOP(cmd.Args)
+			if !bytes.Equal(resp, RESP_NIL) && !isRESPError(resp) {
+				WriteAOF(cmd)
+			}
+		case "LRANGE":
+			resp = evalLRANGE(cmd.Args)
+		case "LLEN":
+			resp = evalLLEN(cmd.Args)
+
+		// Hash commands
+		case "HSET":
+			resp = evalHSET(cmd.Args)
+			if !isRESPError(resp) {
+				WriteAOF(cmd)
+			}
+		case "HGET":
+			resp = evalHGET(cmd.Args)
+		case "HDEL":
+			resp = evalHDEL(cmd.Args)
+			if !bytes.Equal(resp, RESP_ZERO) && !isRESPError(resp) {
+				WriteAOF(cmd)
+			}
+		case "HGETALL":
+			resp = evalHGETALL(cmd.Args)
+		case "HLEN":
+			resp = evalHLEN(cmd.Args)
+		case "HEXISTS":
+			resp = evalHEXISTS(cmd.Args)
+
 		case "BGREWRITEAOF":
 			go func() {
 				if err := RewriteAOF(); err != nil {

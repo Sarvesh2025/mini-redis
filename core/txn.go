@@ -61,6 +61,18 @@ func evalEXEC(ctx *ClientContext) []byte {
 			if bytes.Equal(responses[i], RESP_ONE) {
 				WriteAOF(cmd)
 			}
+		case "LPUSH", "RPUSH", "HSET":
+			if !isRESPError(responses[i]) {
+				WriteAOF(cmd)
+			}
+		case "LPOP", "RPOP":
+			if !bytes.Equal(responses[i], RESP_NIL) && !isRESPError(responses[i]) {
+				WriteAOF(cmd)
+			}
+		case "HDEL":
+			if !bytes.Equal(responses[i], RESP_ZERO) && !isRESPError(responses[i]) {
+				WriteAOF(cmd)
+			}
 		}
 	}
 
@@ -110,6 +122,35 @@ func evalCmdInternal(cmd *RedisCmd) []byte {
 		return evalDELInternal(cmd.Args)
 	case "EXPIRE":
 		return evalEXPIREInternal(cmd.Args)
+
+	// List commands
+	case "LPUSH":
+		return evalLPUSHInternal(cmd.Args)
+	case "RPUSH":
+		return evalRPUSHInternal(cmd.Args)
+	case "LPOP":
+		return evalLPOPInternal(cmd.Args)
+	case "RPOP":
+		return evalRPOPInternal(cmd.Args)
+	case "LRANGE":
+		return evalLRANGEInternal(cmd.Args)
+	case "LLEN":
+		return evalLLENInternal(cmd.Args)
+
+	// Hash commands
+	case "HSET":
+		return evalHSETInternal(cmd.Args)
+	case "HGET":
+		return evalHGETInternal(cmd.Args)
+	case "HDEL":
+		return evalHDELInternal(cmd.Args)
+	case "HGETALL":
+		return evalHGETALLInternal(cmd.Args)
+	case "HLEN":
+		return evalHLENInternal(cmd.Args)
+	case "HEXISTS":
+		return evalHEXISTSInternal(cmd.Args)
+
 	default:
 		return Encode(errors.New("ERR unknown command '"+strings.ToLower(cmd.Cmd)+"'"), false)
 	}
